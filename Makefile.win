@@ -4,8 +4,8 @@
 CPP      = g++.exe
 CC       = gcc.exe
 WINDRES  = windres.exe
-OBJ      = Player.o main.o Boss.o
-LINKOBJ  = Player.o main.o Boss.o
+OBJ      = Player.o main.o Boss.o BattleUI.o
+LINKOBJ  = Player.o main.o Boss.o BattleUI.o
 LIBS     = -L"C:/raylib/w64devkit/lib" -L"C:/raylib/w64devkit/x86_64-w64-mingw32/lib" -static-libstdc++ -static-libgcc -L"C:/raylib/w64devkit/x86_64-w64-mingw32/lib" -lraylib -lopengl32 -lgdi32 -lwinmm
 INCS     = -I"C:/raylib/w64devkit/include" -I"C:/raylib/w64devkit/x86_64-w64-mingw32/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include"
 CXXINCS  = -I"C:/raylib/w64devkit/include" -I"C:/raylib/w64devkit/x86_64-w64-mingw32/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include/c++"
@@ -32,3 +32,6 @@ main.o: main.cpp
 
 Boss.o: Boss.cpp
 	$(CPP) -c Boss.cpp -o Boss.o $(CXXFLAGS)
+
+BattleUI.o: BattleUI.cpp
+	$(CPP) -c BattleUI.cpp -o BattleUI.o $(CXXFLAGS)
