@@ -1,0 +1,34 @@
+# Project: Game2D
+# Makefile created by Embarcadero Dev-C++ 6.3
+
+CPP      = g++.exe
+CC       = gcc.exe
+WINDRES  = windres.exe
+OBJ      = Player.o main.o Boss.o
+LINKOBJ  = Player.o main.o Boss.o
+LIBS     = -L"C:/raylib/w64devkit/lib" -L"C:/raylib/w64devkit/x86_64-w64-mingw32/lib" -static-libstdc++ -static-libgcc -L"C:/raylib/w64devkit/x86_64-w64-mingw32/lib" -lraylib -lopengl32 -lgdi32 -lwinmm
+INCS     = -I"C:/raylib/w64devkit/include" -I"C:/raylib/w64devkit/x86_64-w64-mingw32/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include"
+CXXINCS  = -I"C:/raylib/w64devkit/include" -I"C:/raylib/w64devkit/x86_64-w64-mingw32/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include/c++"
+BIN      = Game2D.exe
+CXXFLAGS = $(CXXINCS) 
+CFLAGS   = $(INCS) 
+DEL      = C:\Users\PVHuy\Desktop\Embarcadero_Dev-Cpp_6.3_No_Compiler_Portable\devcpp.exe INTERNAL_DEL
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before $(BIN) all-after
+
+clean: clean-custom
+	${DEL} $(OBJ) $(BIN)
+
+$(BIN): $(OBJ)
+	$(CPP) $(LINKOBJ) -o $(BIN) $(LIBS)
+
+Player.o: Player.cpp
+	$(CPP) -c Player.cpp -o Player.o $(CXXFLAGS)
+
+main.o: main.cpp
+	$(CPP) -c main.cpp -o main.o $(CXXFLAGS)
+
+Boss.o: Boss.cpp
+	$(CPP) -c Boss.cpp -o Boss.o $(CXXFLAGS)
