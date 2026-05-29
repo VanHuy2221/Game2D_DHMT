@@ -17,11 +17,11 @@ void BattleUI::Update() {
 
 void BattleUI::Draw() {
     // ===== 1. KHUNG BATTLE BOX =====
-    // To nen den mo (giu nguyen, khong phai ve duong thang)
+    // Nen den mo ben trong khung (dung ham raylib truc tiep - khong phai bai tap ve)
     DrawRectangleRec(box, Fade(BLACK, 0.3f));
 
-    // Ve 4 canh khung bang Bresenham (thay DrawRectangleLinesEx cu)
-    // Do day 4px, mau trang
+    // Ve 4 canh khung bang Bresenham day 4px, mau trang
+    // => Day la noi ap dung DrawRectBresenham vao game
     DrawRectBresenham(
         (int)box.x, (int)box.y,
         (int)box.width, (int)box.height,
@@ -31,7 +31,7 @@ void BattleUI::Draw() {
     // ===== 2. UI PHIA DUOI KHUNG =====
     int baseY = (int)(box.y + box.height) + 40;
 
-    // Ten nhan vat va cap do (dung DrawText thuan - khong phai bai tap ve)
+    // Ten nhan vat va cap do
     DrawText(playerName.c_str(),            (int)box.x,       baseY, 30, WHITE);
     DrawText(TextFormat("LV %d", level),    (int)box.x + 200, baseY, 30, WHITE);
 
@@ -42,22 +42,18 @@ void BattleUI::Draw() {
     int   barX      = (int)box.x + 350;
     int   barY      = baseY + 5;
 
-    // --- Nen xam (tong chieu dai thanh mau) ---
-    // To bang Bresenham: ve nhieu duong ngang chong len nhau
-    for (int row = 0; row < barHeight; row++) {
-        DrawLineBresenham(barX, barY + row, barX + barWidth, barY + row, DARKGRAY);
-    }
+    // Nen xam (toan bo thanh HP) - dung DrawRectScanline (ham tu cai)
+    DrawRectScanline(barX, barY, barWidth, barHeight, DARKGRAY);
 
-    // --- Phan mau do (theo ti le HP hien tai) ---
+    // Phan mau do (theo ti le HP hien tai) - dung DrawRectScanline
     int fillWidth = (int)(barWidth * hpRatio);
-    for (int row = 0; row < barHeight; row++) {
-        DrawLineBresenham(barX, barY + row, barX + fillWidth, barY + row, RED);
-    }
+    if (fillWidth > 0)
+        DrawRectScanline(barX, barY, fillWidth, barHeight, RED);
 
-    // --- Vien ngoai HP bar bang Bresenham ---
+    // Vien ngoai HP bar bang Bresenham (ap dung thuat toan TP2)
     DrawRectBresenham(barX, barY, barWidth, barHeight, 2, WHITE);
 
-    // --- Text HP ---
+    // Text HP
     DrawText(
         TextFormat("%d / %d", hp, maxHp),
         barX + barWidth + 20,
