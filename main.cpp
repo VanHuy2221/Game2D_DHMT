@@ -1,54 +1,17 @@
 #include "raylib.h"
-#include "Player.h"
-#include "Boss.h"
-#include "BattleUI.h"
+#include "GameManager.h"
 
 int main() {
-    // Khởi tạo cửa sổ
-    InitWindow(2000, 1200, "Simple Bullet Hell Game");
+    InitWindow(2000, 1200, "Undertale Style Game");
     SetTargetFPS(60);
 
-	BattleUI ui;
-	
-    Vector2 center = {
-	    ui.box.x + ui.box.width / 2,
-	    ui.box.y + ui.box.height / 2
-	};
-	
-	Player player(center);
-    Boss boss({1000, 200}, 200.0f);
+    GameManager game;
 
-    // Game loop
     while (!WindowShouldClose()) {
+        game.Update();
 
-        // ===== UPDATE =====
-        player.Update();
-        boss.Update();
-        ui.Update();
-
-		// GIỚI HẠN PLAYER TRONG BOX
-		float halfSize = player.size / 2;
-
-		if (player.position.x < ui.box.x + halfSize)
-		    player.position.x = ui.box.x + halfSize;
-		
-		if (player.position.x > ui.box.x + ui.box.width - halfSize)
-		    player.position.x = ui.box.x + ui.box.width - halfSize;
-		
-		if (player.position.y < ui.box.y + halfSize)
-		    player.position.y = ui.box.y + halfSize;
-		
-		if (player.position.y > ui.box.y + ui.box.height - halfSize)
-		    player.position.y = ui.box.y + ui.box.height - halfSize;
-
-        // ===== DRAW =====
         BeginDrawing();
-        ClearBackground(BLACK);
-
-        player.Draw();
-        boss.Draw();
-        ui.Draw();
-
+        game.Draw();
         EndDrawing();
     }
 
