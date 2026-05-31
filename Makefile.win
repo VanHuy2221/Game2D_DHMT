@@ -4,8 +4,8 @@
 CPP      = g++.exe
 CC       = gcc.exe
 WINDRES  = windres.exe
-OBJ      = Player.o main.o Boss.o BattleUI.o GameManager.o DrawUtils.o
-LINKOBJ  = Player.o main.o Boss.o BattleUI.o GameManager.o DrawUtils.o
+OBJ      = Player.o main.o Boss.o BattleUI.o GameManager.o DrawUtils.o Bullet.o EnergyOrb.o Fractal.o
+LINKOBJ  = Player.o main.o Boss.o BattleUI.o GameManager.o DrawUtils.o Bullet.o EnergyOrb.o Fractal.o
 LIBS     = -L"C:/raylib/w64devkit/lib" -L"C:/raylib/w64devkit/x86_64-w64-mingw32/lib" -static-libstdc++ -static-libgcc -L"C:/raylib/w64devkit/x86_64-w64-mingw32/lib" -lraylib -lopengl32 -lgdi32 -lwinmm
 INCS     = -I"C:/raylib/w64devkit/include" -I"C:/raylib/w64devkit/x86_64-w64-mingw32/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include"
 CXXINCS  = -I"C:/raylib/w64devkit/include" -I"C:/raylib/w64devkit/x86_64-w64-mingw32/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include" -I"C:/raylib/w64devkit/lib/gcc/x86_64-w64-mingw32/14.2.0/include/c++"
@@ -41,3 +41,12 @@ GameManager.o: GameManager.cpp
 
 DrawUtils.o: DrawUtils.cpp
 	$(CPP) -c DrawUtils.cpp -o DrawUtils.o $(CXXFLAGS)
+
+Bullet.o: Bullet.cpp
+	$(CPP) -c Bullet.cpp -o Bullet.o $(CXXFLAGS)
+
+EnergyOrb.o: EnergyOrb.cpp
+	$(CPP) -c EnergyOrb.cpp -o EnergyOrb.o $(CXXFLAGS)
+
+Fractal.o: Fractal.cpp
+	$(CPP) -c Fractal.cpp -o Fractal.o $(CXXFLAGS)
