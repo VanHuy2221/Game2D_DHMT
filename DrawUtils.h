@@ -1,71 +1,99 @@
 #pragma once
 #include "raylib.h"
 #include <vector>
-#include <stack>
 
 // ============================================================
-//  DrawUtils.h - Thu vien ve hinh tu cai dat
-//  Cac thuat toan duoc tu cai dat bang DrawPixel,
-//  khong dung cac ham ve san co cua Raylib (DrawLine, DrawCircle...)
+//  DrawUtils.h - Thu vien ve hinh tu cai dat (Khong dung DrawPixel)
+//
+//  Thay vi ve tung pixel mot (rat cham), cac ham o day dung:
+//    - DrawRectangle(x, y, w, 1, color)  : ve mot hang ngang w pixel
+//    - DrawLine (noi bo raylib)           : KHONG dung - tu cai bang spans
+//  => Moi "duong" duoc bieu dien bang tap hop cac doan ngang (horizontal spans)
+//     Ve ca doan 1 lan thay vi tung pixel -> nhanh hon rat nhieu
 // ============================================================
+
 
 // ============================================================
 //  PHAN 1: THUAT TOAN VE DUONG THANG - BRESENHAM LINE
-//  Nguyen ly: thay vi tinh float, dung bien sai so nguyen (error)
-//  de quyet dinh pixel nao can to, tranh phep nhan/chia so thuc
+//
+//  Nguyen ly Bresenham:
+//    Thay vi tinh float y = m*x + b moi buoc (ton kem),
+//    dung bien nguyen "error" tich luy sai so.
+//    Khi error vuot nguong -> buoc them 1 buoc theo truc phu.
+//    Ket qua: chi dung phep cong/tru nguyen, rat nhanh.
+//
+//  Xu ly day duong (thickness):
+//    Ve nhieu duong Bresenham song song doc theo phap tuyen
+//    cua duong chinh, moi duong offset them 1 pixel.
 // ============================================================
 
-// Ve duong thang tong quat (xu ly tat ca truong hop goc do)
-// - |m| < 1  : buoc theo x, quyet dinh y bang error
-// - |m| > 1  : buoc theo y, quyet dinh x bang error (hoan vi truc)
-// - Xu ly ca 2 chieu am (dx < 0, dy < 0)
+// Ve duong thang Bresenham tong quat (xu ly moi goc do va chieu)
+// Dung DrawRectangle(x,y,1,1) cho diem don, nhung gom span ngang khi co the
 void DrawLineBresenham(int x1, int y1, int x2, int y2, Color color);
 
-// Ve duong thang voi do day (thickness), dung cho khung UI
+// Ve duong thang co do day (thickness > 1)
+// Offset theo phap tuyen cua duong thang
 void DrawLineBresenhamThick(int x1, int y1, int x2, int y2, int thickness, Color color);
 
-// Ve hinh chu nhat bang 4 canh Bresenham (dung cho BattleUI box)
+// Ve khung chu nhat voi do day bang 4 canh Bresenham
 void DrawRectBresenham(int x, int y, int w, int h, int thickness, Color color);
+
 
 // ============================================================
 //  PHAN 2: THUAT TOAN VE DUONG TRON - MIDPOINT CIRCLE
-//  Nguyen ly: xet diem giua (midpoint) giua 2 pixel ung vien
-//  De quyet dinh pixel nao nam tren duong tron hon
-//  Dung tinh doi xung 8 cung (octant symmetry) de ve ca vong tron
-//  chi tu 1/8 tinh toan
+//
+//  Nguyen ly Midpoint:
+//    Chi tinh 1/8 cung (octant dau), su dung doi xung 8 huong
+//    de suy ra 8 diem dong thoi: (+x,+y), (-x,+y), (+x,-y)...
+//    Bien quyet dinh p = 1 - R, cap nhat nguyen toan bo.
+//
+//  To dac (filled):
+//    Thay vi ve 8 diem roi FloodFill (cham),
+//    voi moi gia tri (x,y) tren duong tron -> quet doan ngang
+//    tu cx-x den cx+x (va cx-y den cx+y) bang 1 DrawRectangle.
+//    => To nguyen ca hinh tron ma khong can FloodFill.
 // ============================================================
 
-// Ve vong tron rong (outline) bang Midpoint Circle
-// Tan dung doi xung 8 cung: neu (x,y) tren duong tron
-// thi (y,x), (-x,y), (x,-y)... cung tren duong tron
+// Ve vong tron rong (outline) bang Midpoint Circle - 8 diem doi xung
 void DrawCircleMidpoint(int cx, int cy, int radius, Color color);
 
-// To dac hinh tron: quet tung hang ngang giua 2 diem bien
-void DrawCircleFilled(int cx, int cy, int radius, Color color);
+// To dac hinh tron bang Midpoint + scanline (khong dung FloodFill)
+void DrawCircleFilledMidpoint(int cx, int cy, int radius, Color color);
 
-// Ve vong tron voi do day (dung cho hao quang Boss)
+// Ve vong tron co do day (nhieu vong dong tam)
 void DrawCircleThick(int cx, int cy, int radius, int thickness, Color color);
 
-// ============================================================
-//  PHAN 3: THUAT TOAN TO MAU DA GIAC - FLOOD FILL
-//  Nguyen ly: to mau tu diem bat dau, lan rong ra xung quanh
-//  den khi gap mau bien (boundary color)
-//  Dung stack thay vi de qui thuan tuy de tranh stack overflow
-//  khi vung to lon
-// ============================================================
+// Ve vong tron mo dan (alpha giam tu trong ra ngoai) - dung cho hao quang Boss
+void DrawCircleFadeRing(int cx, int cy, int innerR, int outerR, Color color);
 
-// To mau theo bien (boundary fill) - dung stack khong de qui
-// fillColor: mau can to vao
-// boundaryColor: mau bien khong vuot qua
-void FloodFillStack(int x, int y, Color fillColor, Color boundaryColor);
 
 // ============================================================
-//  PHAN 4: HAM HO TRO NOI BO
+//  PHAN 3: VE TAM GIAC - SCANLINE FILL
+//
+//  Nguyen ly Scanline Triangle Fill:
+//    1. Sap xep 3 dinh theo Y tang dan: top, mid, bot
+//    2. Voi moi hang ngang y (tu top.y den bot.y):
+//       - Tinh giao diem voi canh trai va canh phai cua tam giac
+//       - Ve doan ngang noi 2 giao diem bang 1 DrawRectangle
+//    => Khong can FloodFill, chinh xac va nhanh
+//
+//  Ve vien: sau khi fill, ve 3 canh bang DrawLineBresenham
 // ============================================================
 
-// Kiem tra 2 mau co giong nhau khong (de dung trong flood fill)
-bool ColorEquals(Color a, Color b);
+// Ve tam giac dac bang scanline fill (nhanh, khong FloodFill)
+void DrawTriangleScanline(Vector2 v1, Vector2 v2, Vector2 v3, Color fillColor);
 
-// Ve tam giac dac bang Bresenham + FloodFill
-// (Dung cho than Boss)
+// Ve vien tam giac bang Bresenham
+void DrawTriangleOutlineBresenham(Vector2 v1, Vector2 v2, Vector2 v3, Color borderColor);
+
+// Ve tam giac day du: fill + vien
 void DrawTriangleBresenham(Vector2 v1, Vector2 v2, Vector2 v3, Color fillColor, Color borderColor);
+
+
+// ============================================================
+//  PHAN 4: VE CHU NHAT DAC - SCANLINE (thay the DrawRectangle)
+//  Dung DrawRectangle(x, y, w, 1) de quan ly ro rang
+//  (hien tai chi wrap, nhung giu interface thong nhat)
+// ============================================================
+
+void DrawRectScanline(int x, int y, int w, int h, Color color);

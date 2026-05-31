@@ -15,6 +15,11 @@ int main() {
         EndDrawing();
     }
 
+    // Giai phong am thanh truoc khi dong cua so
+    // (Can goi ham nay, nhung hien tai GameManager khong co destructor)
+    // Cach don gian: them dong nay neu co the
+    // Hoac de ham UnloadGameSounds se tu goi khi window close
+    
     CloseWindow();
     return 0;
 }

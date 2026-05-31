@@ -17,7 +17,10 @@ public:
     bool isDashing;
     float dashTime;
     float dashCooldown;
-    std::vector<DashEffect> dashEffects; // 💥 hiệu ứng nổ
+    std::vector<DashEffect> dashEffects;
+    
+    // Bien de kiem tra vua dash de phat am thanh (TP4)
+    bool justDashed;
 
     Player(Vector2 startPos);
     void Update();

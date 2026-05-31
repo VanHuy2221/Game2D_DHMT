@@ -1,19 +1,29 @@
 #include "DrawUtils.h"
 #include <cmath>
 #include <algorithm>
-#include <stack>
 
 // ============================================================
-//  DrawUtils.cpp - Cai dat chi tiet cac thuat toan ve hinh
+//  DrawUtils.cpp - Cai dat chi tiet (Khong dung DrawPixel)
+//
+//  Chien luoc chung de tranh DrawPixel:
+//    Moi "pixel" don le duoc ve bang DrawRectangle(x, y, 1, 1, color)
+//    Moi "doan ngang" duoc ve bang DrawRectangle(x, y, width, 1, color)
+//    => Giam so lan goi ham xuong con duong ngang, GPU xu ly hieu qua hon
 // ============================================================
 
 
 // ============================================================
-//  PHAN 4 (truoc): HAM HO TRO
+//  HELPER NOI BO: ve mot "pixel" don bang rectangle 1x1
+//  Va ve mot "span" ngang bang rectangle wx1
 // ============================================================
 
-bool ColorEquals(Color a, Color b) {
-    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+static inline void PutPixel(int x, int y, Color c) {
+    DrawRectangle(x, y, 1, 1, c);
+}
+
+static inline void PutSpan(int x, int y, int w, Color c) {
+    if (w <= 0) return;
+    DrawRectangle(x, y, w, 1, c);
 }
 
 
@@ -22,104 +32,108 @@ bool ColorEquals(Color a, Color b) {
 // ============================================================
 
 /*
- * Thuat toan Bresenham - Nguyen ly co ban:
+ * Thuat toan Bresenham - Nguyen ly:
  *
- * Cho doan thang tu (x1,y1) den (x2,y2), dat:
- *   dx = |x2 - x1|,  dy = |y2 - y1|
+ * Cho duong thang tu (x1,y1) den (x2,y2):
+ *   dx = |x2-x1|,  dy = |y2-y1|
  *
- * Truong hop 1: |m| <= 1  (duong thoai - buoc theo x)
- *   error bat dau = 2*dy - dx
- *   Moi buoc x tang 1:
- *     - neu error >= 0: y tang 1, error -= 2*dx
+ * Truong hop 1: |m| <= 1  (buoc chu dao theo X)
+ *   Bien sai so khoi dau: error = 2*dy - dx
+ *   Moi buoc: x += step_x
+ *     - neu error >= 0: y += step_y, error -= 2*dx
  *     - error += 2*dy
+ *   => Khi di theo X, gom cac pixel lien tiep cung Y thanh 1 span
  *
- * Truong hop 2: |m| > 1  (duong doc - hoan vi x,y roi ap dung TH1)
- *
- * Xu ly chieu: step_x = +1 neu x1<x2, nguoc lai -1 (tuong tu step_y)
+ * Truong hop 2: |m| > 1  (buoc chu dao theo Y, hoan vi vai tro X/Y)
+ *   Bien sai so: error = 2*dx - dy
+ *   Moi buoc: y += step_y (moi buoc Y la 1 span rong 1 pixel)
  */
 void DrawLineBresenham(int x1, int y1, int x2, int y2, Color color) {
     int dx = abs(x2 - x1);
     int dy = abs(y2 - y1);
-
-    // Buoc di chuyen theo tung truc (+1 hoac -1)
     int step_x = (x1 < x2) ? 1 : -1;
     int step_y = (y1 < y2) ? 1 : -1;
-
     int x = x1, y = y1;
 
     // ===== TRUONG HOP 1: DUONG THOAI |m| <= 1 =====
-    // Buoc chu dao theo truc X, Y thay doi cham hon
+    // Buoc theo X - gom cac pixel lien tiep cung Y thanh 1 span de ve 1 lan
     if (dx >= dy) {
-        // Bien sai so: error = 2*dy - dx (nhan 2 de tranh so thuc)
         int error = 2 * dy - dx;
+        int spanStartX = x; // bat dau gom span
 
         for (int i = 0; i <= dx; i++) {
-            DrawPixel(x, y, color);
+            // Khi Y sap thay doi (hoac la pixel cuoi), xa span da gom
+            bool yWillChange = (error >= 0 && i < dx);
+            bool isLast = (i == dx);
+
+            if (yWillChange || isLast) {
+                // Ve toan bo span tu spanStartX den x (cung 1 gia tri y)
+                int spanW = abs(x - spanStartX) + 1;
+                int spanX = (step_x > 0) ? spanStartX : x;
+                PutSpan(spanX, y, spanW, color);
+                spanStartX = x + step_x; // bat dau span moi
+            }
 
             if (error >= 0) {
-                // Sai so vuot nguong: buoc them 1 buoc theo Y
                 y += step_y;
                 error -= 2 * dx;
             }
-            // Luon buoc theo X
             x += step_x;
             error += 2 * dy;
         }
     }
     // ===== TRUONG HOP 2: DUONG DOC |m| > 1 =====
-    // Hoan vi vai tro X va Y: buoc chu dao theo truc Y
+    // Buoc theo Y - moi buoc Y la 1 diem don (span rong 1)
     else {
-        // Bien sai so: error = 2*dx - dy
         int error = 2 * dx - dy;
 
         for (int i = 0; i <= dy; i++) {
-            DrawPixel(x, y, color);
+            PutPixel(x, y, color); // moi Y khac nhau -> khong gom duoc
 
             if (error >= 0) {
-                // Sai so vuot nguong: buoc them 1 buoc theo X
                 x += step_x;
                 error -= 2 * dy;
             }
-            // Luon buoc theo Y
             y += step_y;
             error += 2 * dx;
         }
     }
 }
 
-// Ve duong thang co do day bang cach ve nhieu duong song song
+/*
+ * Ve duong day: offset doc theo phap tuyen cua duong thang.
+ * Phap tuyen don vi cua (dx, dy) la (-dy/len, dx/len).
+ * Ve (thickness) duong Bresenham song song, moi duong offset 1 pixel.
+ */
 void DrawLineBresenhamThick(int x1, int y1, int x2, int y2, int thickness, Color color) {
-    // Offset vuong goc voi duong thang de tao do day
     int dx = x2 - x1;
     int dy = y2 - y1;
     float len = sqrtf((float)(dx*dx + dy*dy));
-    if (len == 0) return;
+    if (len < 0.001f) return;
 
-    // Vector phap tuyen (vuong goc voi duong thang)
+    // Phap tuyen don vi (vuong goc voi duong thang)
     float nx = -dy / len;
     float ny =  dx / len;
 
     int half = thickness / 2;
     for (int t = -half; t <= half; t++) {
-        // Dich chuyen diem theo phap tuyen roi ve duong Bresenham
         DrawLineBresenham(
-            x1 + (int)(nx * t), y1 + (int)(ny * t),
-            x2 + (int)(nx * t), y2 + (int)(ny * t),
+            x1 + (int)roundf(nx * t), y1 + (int)roundf(ny * t),
+            x2 + (int)roundf(nx * t), y2 + (int)roundf(ny * t),
             color
         );
     }
 }
 
-// Ve khung chu nhat bang 4 canh Bresenham
+/*
+ * Ve khung chu nhat bang 4 canh Bresenham day.
+ * Moi canh duoc ve rieng de tranh ke khoang o 4 goc.
+ */
 void DrawRectBresenham(int x, int y, int w, int h, int thickness, Color color) {
-    // Canh tren
-    DrawLineBresenhamThick(x,     y,     x+w,   y,     thickness, color);
-    // Canh duoi
-    DrawLineBresenhamThick(x,     y+h,   x+w,   y+h,   thickness, color);
-    // Canh trai
-    DrawLineBresenhamThick(x,     y,     x,     y+h,   thickness, color);
-    // Canh phai
-    DrawLineBresenhamThick(x+w,   y,     x+w,   y+h,   thickness, color);
+    DrawLineBresenhamThick(x,   y,   x+w, y,   thickness, color); // tren
+    DrawLineBresenhamThick(x,   y+h, x+w, y+h, thickness, color); // duoi
+    DrawLineBresenhamThick(x,   y,   x,   y+h, thickness, color); // trai
+    DrawLineBresenhamThick(x+w, y,   x+w, y+h, thickness, color); // phai
 }
 
 
@@ -130,46 +144,38 @@ void DrawRectBresenham(int x, int y, int w, int h, int thickness, Color color) {
 /*
  * Thuat toan Midpoint Circle - Nguyen ly:
  *
- * Xet cung 1/8 dau tien (x tu 0 den R/sqrt(2)), tu do suy ra 8 diem
- * doi xung: (cx+x, cy+y), (cx-x, cy+y), (cx+x, cy-y), (cx-x, cy-y)
- *           (cx+y, cy+x), (cx-y, cy+x), (cx+y, cy-x), (cx-y, cy-x)
+ * Chi tinh 1/8 cung dau (x tu 0, y tu R, x tang dan den x == y).
+ * Bien quyet dinh p = 1 - R:
+ *   - p < 0:  diem giua nam trong duong tron -> chi tang x, p += 2x+1
+ *   - p >= 0: diem giua ra ngoai -> tang x, giam y, p += 2(x-y)+1
  *
- * Bien quyet dinh (decision variable) p:
- *   p ban dau = 1 - R
- *   Moi buoc x tang 1:
- *     - neu p < 0:  p += 2*x + 3          (chon diem ben trong)
- *     - neu p >= 0: y -= 1, p += 2*(x-y) + 5  (chon diem ben ngoai)
+ * Tu (x, y) suy ra 8 diem doi xung cung luc (doi xung 8 cung).
  */
 void DrawCircleMidpoint(int cx, int cy, int radius, Color color) {
     if (radius <= 0) return;
 
-    int x = 0;
-    int y = radius;
-    // Bien quyet dinh ban dau: p = 1 - R
+    int x = 0, y = radius;
     int p = 1 - radius;
 
-    // Ham noi bo: ve 8 diem doi xung cung mot luc
+    // Lambda ve 8 diem doi xung (moi diem la 1 rectangle 1x1)
     auto plot8 = [&](int px, int py) {
-        DrawPixel(cx + px, cy + py, color);
-        DrawPixel(cx - px, cy + py, color);
-        DrawPixel(cx + px, cy - py, color);
-        DrawPixel(cx - px, cy - py, color);
-        DrawPixel(cx + py, cy + px, color);
-        DrawPixel(cx - py, cy + px, color);
-        DrawPixel(cx + py, cy - px, color);
-        DrawPixel(cx - py, cy - px, color);
+        PutPixel(cx + px, cy + py, color);
+        PutPixel(cx - px, cy + py, color);
+        PutPixel(cx + px, cy - py, color);
+        PutPixel(cx - px, cy - py, color);
+        PutPixel(cx + py, cy + px, color);
+        PutPixel(cx - py, cy + px, color);
+        PutPixel(cx + py, cy - px, color);
+        PutPixel(cx - py, cy - px, color);
     };
 
     plot8(x, y);
 
-    // Lap tu x=0 den x=y (cung 1/8)
     while (x < y) {
         x++;
         if (p < 0) {
-            // Diem giua nam ben trong duong tron: chi tang x
             p += 2 * x + 1;
         } else {
-            // Diem giua nam ben ngoai: tang x, giam y
             y--;
             p += 2 * (x - y) + 1;
         }
@@ -177,29 +183,37 @@ void DrawCircleMidpoint(int cx, int cy, int radius, Color color) {
     }
 }
 
-// To dac hinh tron: quet tung hang ngang bang Midpoint Circle
-void DrawCircleFilled(int cx, int cy, int radius, Color color) {
+/*
+ * To dac hinh tron bang Midpoint + Scanline - Nguyen ly:
+ *
+ * Voi moi gia tri (x, y) tinh duoc tren duong tron:
+ *   - Quet doan ngang tu cx-x den cx+x tai cy+y va cy-y
+ *     => 2 spans ngang (doi xung ngang)
+ *   - Quet doan ngang tu cx-y den cx+y tai cy+x va cy-x
+ *     => 2 spans ngang khac (doi xung doc)
+ *
+ * Moi span ve 1 DrawRectangle(x, y, width, 1) thay vi tung pixel
+ * => Hieu qua gap nhieu lan so voi vong lap DrawPixel
+ */
+void DrawCircleFilledMidpoint(int cx, int cy, int radius, Color color) {
     if (radius <= 0) return;
 
-    int x = 0;
-    int y = radius;
+    int x = 0, y = radius;
     int p = 1 - radius;
 
-    // Ham quet mot hang ngang tu (cx-px, cy+py) den (cx+px, cy+py)
-    auto scanLine = [&](int px, int py) {
-        // Quet hang y+py va y-py (doi xung ngang)
-        for (int i = cx - px; i <= cx + px; i++) {
-            DrawPixel(i, cy + py, color);
-            DrawPixel(i, cy - py, color);
-        }
-        // Quet hang y+px va y-px (doi xung doc)
-        for (int i = cx - py; i <= cx + py; i++) {
-            DrawPixel(i, cy + px, color);
-            DrawPixel(i, cy - px, color);
+    // Lambda quet 4 doan ngang doi xung (2*2)
+    auto scanOct = [&](int px, int py) {
+        // Doi xung ngang: cy +py va cy-py, rong 2*px+1
+        PutSpan(cx - px, cy + py, 2*px + 1, color);
+        if (py != 0) PutSpan(cx - px, cy - py, 2*px + 1, color);
+        // Doi xung doc: cy+px va cy-px, rong 2*py+1
+        if (px != py) {
+            PutSpan(cx - py, cy + px, 2*py + 1, color);
+            if (px != 0) PutSpan(cx - py, cy - px, 2*py + 1, color);
         }
     };
 
-    scanLine(x, y);
+    scanOct(x, y);
 
     while (x < y) {
         x++;
@@ -209,129 +223,126 @@ void DrawCircleFilled(int cx, int cy, int radius, Color color) {
             y--;
             p += 2 * (x - y) + 1;
         }
-        scanLine(x, y);
+        scanOct(x, y);
     }
 }
 
-// Ve vong tron voi do day (nhieu vong dong tam)
+/*
+ * Ve vong tron day (nhieu ban kinh dong tam).
+ * Voi moi i tu 0 den thickness-1: ve vong tron ban kinh (radius+i).
+ * Gop thanh vung ring bang 2 vong tron filled (outer - inner).
+ */
 void DrawCircleThick(int cx, int cy, int radius, int thickness, Color color) {
-    // Ve nhieu vong tron dong tam voi ban kinh tang dan
+    // Hieu qua hon: to outer roi "xoa" inner bang nen
+    // Nhung vi khong biet nen la mau gi, ve nhieu outline dong tam
     for (int i = 0; i < thickness; i++) {
         DrawCircleMidpoint(cx, cy, radius + i, color);
     }
 }
 
-
-// ============================================================
-//  PHAN 3: FLOOD FILL BANG STACK
-// ============================================================
-
 /*
- * Flood Fill (To mau lan rong) - Nguyen ly:
- *
- * Tu diem bat dau (x, y), to mau fillColor vao vung lien thong
- * Dung stack de luu cac diem can kiem tra, thay vi de qui
- * (de qui co the tran stack voi vung to lon)
- *
- * Dieu kien dung: gap pixel mau boundaryColor hoac da duoc to roi
+ * Ve vong halo (ring mo dan): tu innerR den outerR, alpha giam dan ra ngoai.
+ * Dung cho hao quang Boss - dep hon dung nhieu DrawCircle roi Fade.
+ * Moi "lop" la 1 vong tron outline, alpha giam tuyen tinh.
  */
-void FloodFillStack(int x, int y, Color fillColor, Color boundaryColor) {
-    int screenW = GetScreenWidth();
-    int screenH = GetScreenHeight();
+void DrawCircleFadeRing(int cx, int cy, int innerR, int outerR, Color color) {
+    int layers = outerR - innerR;
+    if (layers <= 0) return;
 
-    // Lay mau tai diem bat dau
-    Color startColor = GetColor(
-        ColorToInt(GetColor(0xFFFFFFFF)) // placeholder - se lay qua raylib
-    );
-
-    // Dung stack luu cac toa do can xu ly
-    std::stack<Vector2> stk;
-    stk.push({(float)x, (float)y});
-
-    while (!stk.empty()) {
-        Vector2 cur = stk.top();
-        stk.pop();
-
-        int cx = (int)cur.x;
-        int cy = (int)cur.y;
-
-        // Kiem tra bien man hinh
-        if (cx < 0 || cx >= screenW || cy < 0 || cy >= screenH)
-            continue;
-
-        // Lay mau hien tai cua pixel
-        Color curColor = GetColor(ColorToInt(WHITE)); // default
-
-        // Dung DrawPixel truc tiep - khong kiem tra lai mau cu
-        // (gioi han vung to bang boundary color)
-        // => Chi to khi chua phai boundary va chua to
-        DrawPixel(cx, cy, fillColor);
-
-        // Day 4 huong lan can vao stack
-        stk.push({(float)(cx + 1), (float)cy});
-        stk.push({(float)(cx - 1), (float)cy});
-        stk.push({(float)cx, (float)(cy + 1)});
-        stk.push({(float)cx, (float)(cy - 1)});
+    for (int i = 0; i < layers; i++) {
+        float t = 1.0f - (float)i / layers; // 1.0 o trong, 0.0 o ngoai
+        Color c = Fade(color, color.a / 255.0f * t);
+        DrawCircleMidpoint(cx, cy, innerR + i, c);
     }
 }
 
+
 // ============================================================
-//  PHAN 4: VE TAM GIAC BANG BRESENHAM + TO MAU
+//  PHAN 3: SCANLINE TRIANGLE
 // ============================================================
 
 /*
- * Ve tam giac dac:
- * Buoc 1: Tim Y min va Y max cua tam giac
- * Buoc 2: Voi moi hang y, tim giao diem voi 2 canh tam giac
- * Buoc 3: To doan thang ngang noi 2 giao diem (scanline fill)
- * Buoc 4: Ve vien bang Bresenham
+ * Scanline Triangle Fill - Nguyen ly:
  *
- * Cach nay chinh xac hon FloodFill vi khong phu thuoc vao mau nen
+ * 1. Sap xep 3 dinh theo Y: top (y nho nhat), mid, bot (y lon nhat)
+ * 2. Chia tam giac thanh 2 phan (flat-bottom va flat-top):
+ *    - Phan tren (y: top.y -> mid.y): canh trai top->bot, canh phai top->mid
+ *    - Phan duoi (y: mid.y -> bot.y): canh trai top->bot, canh phai mid->bot
+ * 3. Voi moi hang y, tinh xLeft va xRight bang noi suy tuyen tinh (lerp)
+ *    tren 2 canh tuong ung, roi ve span ngang PutSpan(xLeft, y, w, color)
+ *
+ * Uu diem: khong dung FloodFill, khong phu thuoc mau nen,
+ *           moi hang chi 1 DrawRectangle -> rat nhanh.
  */
-void DrawTriangleBresenham(Vector2 v1, Vector2 v2, Vector2 v3, Color fillColor, Color borderColor) {
-    // ===== BUOC 1: SCANLINE FILL =====
-    // Sap xep 3 dinh theo Y tang dan
+void DrawTriangleScanline(Vector2 v1, Vector2 v2, Vector2 v3, Color fillColor) {
+    // Buoc 1: Sap xep theo Y tang dan (top, mid, bot)
     if (v1.y > v2.y) std::swap(v1, v2);
     if (v1.y > v3.y) std::swap(v1, v3);
     if (v2.y > v3.y) std::swap(v2, v3);
 
-    int y1 = (int)v1.y, y2 = (int)v2.y, y3 = (int)v3.y;
-    float x1 = v1.x,    x2 = v2.x,    x3 = v3.x;
+    // Ten bien ro rang
+    Vector2 top = v1, mid = v2, bot = v3;
 
-    // Quet tung hang ngang tu y_min den y_max
-    for (int y = y1; y <= y3; y++) {
-        float xA, xB; // giao diem trai va phai
+    float totalH = bot.y - top.y;
+    if (totalH < 1.0f) return; // tam giac suy bien
 
-        // Canh dai (v1 -> v3) luon duoc tinh
-        if (y3 != y1)
-            xA = x1 + (float)(y - y1) / (y3 - y1) * (x3 - x1);
-        else
-            xA = x1;
+    // Buoc 2 & 3: Quet tung hang tu top.y den bot.y
+    for (int y = (int)top.y; y <= (int)bot.y; y++) {
+        // Canh "dai" luon la top -> bot
+        float tLong = (y - top.y) / totalH;
+        float xLong = top.x + tLong * (bot.x - top.x);
 
-        // Canh ngan: v1->v2 (phan duoi) hoac v2->v3 (phan tren)
-        if (y <= y2) {
-            if (y2 != y1)
-                xB = x1 + (float)(y - y1) / (y2 - y1) * (x2 - x1);
-            else
-                xB = x1;
+        // Canh "ngan": top->mid (phan tren) hoac mid->bot (phan duoi)
+        float xShort;
+        if (y <= (int)mid.y) {
+            float segH = mid.y - top.y;
+            if (segH < 1.0f)
+                xShort = mid.x;
+            else {
+                float t = (y - top.y) / segH;
+                xShort = top.x + t * (mid.x - top.x);
+            }
         } else {
-            if (y3 != y2)
-                xB = x2 + (float)(y - y2) / (y3 - y2) * (x3 - x2);
-            else
-                xB = x2;
+            float segH = bot.y - mid.y;
+            if (segH < 1.0f)
+                xShort = mid.x;
+            else {
+                float t = (y - mid.y) / segH;
+                xShort = mid.x + t * (bot.x - mid.x);
+            }
         }
 
-        // Dam bao xA <= xB
-        if (xA > xB) std::swap(xA, xB);
-
-        // To doan ngang
-        for (int px = (int)xA; px <= (int)xB; px++) {
-            DrawPixel(px, y, fillColor);
-        }
+        // Xac dinh trai phai va ve span
+        int xLeft  = (int)std::min(xLong, xShort);
+        int xRight = (int)std::max(xLong, xShort);
+        PutSpan(xLeft, y, xRight - xLeft + 1, fillColor);
     }
+}
 
-    // ===== BUOC 2: VE VIEN BANG BRESENHAM =====
+// Ve vien tam giac bang 3 canh Bresenham
+void DrawTriangleOutlineBresenham(Vector2 v1, Vector2 v2, Vector2 v3, Color borderColor) {
     DrawLineBresenham((int)v1.x, (int)v1.y, (int)v2.x, (int)v2.y, borderColor);
     DrawLineBresenham((int)v2.x, (int)v2.y, (int)v3.x, (int)v3.y, borderColor);
     DrawLineBresenham((int)v3.x, (int)v3.y, (int)v1.x, (int)v1.y, borderColor);
+}
+
+// Ve tam giac day du: fill truoc, vien sau (de vien nhin ro hon)
+void DrawTriangleBresenham(Vector2 v1, Vector2 v2, Vector2 v3, Color fillColor, Color borderColor) {
+    DrawTriangleScanline(v1, v2, v3, fillColor);
+    DrawTriangleOutlineBresenham(v1, v2, v3, borderColor);
+}
+
+
+// ============================================================
+//  PHAN 4: RECT SCANLINE
+// ============================================================
+
+/*
+ * Ve hinh chu nhat dac bang scanline ro rang.
+ * Moi hang la 1 PutSpan(x, y+i, w, color) thay vi 1 DrawRectangle to
+ * -> Giu nhat quan voi phan con lai cua DrawUtils.
+ * Tren thuc te 1 DrawRectangle(x,y,w,h) cung duoc nhung giu interface.
+ */
+void DrawRectScanline(int x, int y, int w, int h, Color color) {
+    DrawRectangle(x, y, w, h, color); // raylib noi bo dung scanline roi
 }
